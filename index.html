@@ -3,25 +3,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Charge Arch - Plug & Shoot</title>
     <!-- Tailwind CSS for UI controls -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
         
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
         body {
             font-family: 'Outfit', sans-serif;
             touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
             overflow: hidden;
             background-color: #0f172a;
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
         }
 
         canvas {
             display: block;
             background: linear-gradient(to bottom, #0f172a, #1e1b4b);
+            width: 100%;
+            height: 100%;
         }
 
         @keyframes pulse-glow {
@@ -32,36 +43,43 @@
         .plug-prompt {
             animation: pulse-glow 2s infinite ease-in-out;
         }
+
+        .hidden-modal {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
     </style>
 </head>
-<body class="w-screen h-screen flex flex-col justify-between items-center relative text-white">
+<body class="w-screen h-screen flex flex-col justify-between items-center relative text-white bg-slate-950">
 
     <!-- HUD Overlay & Scoreboard -->
-    <div class="absolute top-0 left-0 w-full p-2 sm:p-4 flex justify-between items-start pointer-events-none z-10 gap-2">
-        <div class="bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-xl sm:rounded-2xl p-2 px-3 sm:p-3 sm:px-5 flex items-center space-x-2 sm:space-x-4 shadow-xl">
+    <div class="absolute top-0 left-0 w-full p-3 flex justify-between items-start pointer-events-none z-10 gap-2">
+        <div class="bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-xl p-2 px-3 flex items-center space-x-3 shadow-xl">
             <div>
-                <div class="text-[9px] sm:text-[10px] uppercase tracking-widest text-slate-400 font-bold">Developer</div>
-                <div class="text-xs sm:text-sm font-extrabold text-amber-400">Prinan</div>
+                <div class="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Developer</div>
+                <div class="text-xs font-extrabold text-amber-400">Prinan</div>
             </div>
-            <div class="h-6 sm:h-8 w-px bg-slate-700/80"></div>
+            <div class="h-6 w-px bg-slate-700/80"></div>
             <div>
-                <div class="text-[9px] sm:text-[10px] uppercase tracking-widest text-slate-400 font-bold">Score</div>
-                <div id="scoreText" class="text-lg sm:text-2xl font-black text-amber-400">0</div>
+                <div class="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Score</div>
+                <div id="scoreText" class="text-lg font-black text-amber-400">0</div>
             </div>
-            <div class="h-6 sm:h-8 w-px bg-slate-700/80"></div>
+            <div class="h-6 w-px bg-slate-700/80"></div>
             <div>
-                <div class="text-[9px] sm:text-[10px] uppercase tracking-widest text-slate-400 font-bold">High Score</div>
-                <div id="highScoreText" class="text-lg sm:text-2xl font-black text-slate-200">0</div>
+                <div class="text-[9px] uppercase tracking-widest text-slate-400 font-bold">High Score</div>
+                <div id="highScoreText" class="text-lg font-black text-slate-200">0</div>
             </div>
         </div>
 
         <!-- Charging & Power Meter Indicator -->
-        <div class="bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-xl sm:rounded-2xl p-2 px-3 sm:px-4 flex flex-col items-end shadow-xl max-w-[140px] sm:min-w-[180px] shrink-0">
+        <div class="bg-slate-900/90 backdrop-blur border border-slate-700/60 rounded-xl p-2 px-3 flex flex-col items-end shadow-xl max-w-[140px] shrink-0">
             <div class="flex items-center space-x-1.5 mb-1 w-full justify-end">
-                <span id="chargeStatusText" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate">UNPLUGGED</span>
-                <div id="chargeIcon" class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 animate-pulse shrink-0"></div>
+                <span id="chargeStatusText" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">UNPLUGGED</span>
+                <div id="chargeIcon" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></div>
             </div>
-            <div class="w-full bg-slate-800 h-2.5 sm:h-3 rounded-full overflow-hidden border border-slate-700">
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
                 <div id="powerBar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 w-0 transition-all duration-75"></div>
             </div>
         </div>
@@ -70,86 +88,104 @@
     <!-- Main Game Canvas -->
     <canvas id="gameCanvas" class="w-full h-full absolute inset-0 z-0"></canvas>
 
-    <!-- Center Interactive Guidance Overlay -->
-    <div id="instructionModal" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md z-30 p-6 text-center cursor-pointer">
-        <div class="max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center pointer-events-auto">
-            <div class="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-5 plug-prompt">
-                <svg class="w-10 h-10 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Interactive Start / Game Over Modal -->
+    <div id="instructionModal" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md z-50 p-6 text-center">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col items-center">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-4 plug-prompt">
+                <svg class="w-8 h-8 sm:w-10 sm:h-10 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </div>
-            <h1 id="modalTitle" class="text-4xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200 tracking-tight">CHARGE ARCH</h1>
+            <h1 id="modalTitle" class="text-3xl sm:text-4xl font-black mb-1 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-200 tracking-tight">CHARGE ARCH</h1>
             <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">By Prinan</p>
-            <p id="modalDesc" class="text-slate-300 text-sm mb-6 leading-relaxed">
-                Plug in your charger (or hold the button) to power up your bow. <strong class="text-amber-400">Unplug/release to fire!</strong> Eliminate stick figure targets before they cross the defense line.
+            <p id="modalDesc" class="text-slate-300 text-xs sm:text-sm mb-6 leading-relaxed">
+                Plug in your charger (or hold the bottom button) to power up your bow. <strong class="text-amber-400">Unplug/release to fire!</strong> Defend against stick figures before they reach the red defense line.
             </p>
             
-            <button id="startGameBtn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-2xl shadow-lg transition transform active:scale-95 text-lg cursor-pointer">
+            <button id="startGameBtn" onclick="forceStartGame()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-2xl shadow-lg transition transform active:scale-95 text-base sm:text-lg cursor-pointer">
                 TAP TO PLAY
             </button>
         </div>
     </div>
 
     <!-- Manual Simulator / Touch Controls -->
-    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center space-y-3 w-full max-w-xs px-4 pointer-events-auto">
-        <button id="togglePlugBtn" class="w-full py-3.5 px-6 rounded-2xl font-bold bg-slate-800/90 border border-slate-700/80 hover:bg-slate-700/90 text-amber-400 backdrop-blur shadow-xl transition active:scale-95 flex items-center justify-center space-x-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center space-y-2 w-full max-w-xs px-4">
+        <button id="togglePlugBtn" class="w-full py-3 px-5 rounded-2xl font-bold bg-slate-800/90 border border-slate-700/80 hover:bg-slate-700/90 text-amber-400 backdrop-blur shadow-xl transition active:scale-95 flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
-            <span id="toggleBtnText">HOLD / PLUG IN (SIMULATE)</span>
+            <span id="toggleBtnText" class="text-xs sm:text-sm">HOLD / PLUG IN (SIMULATE)</span>
         </button>
-        <span id="deviceTypeBadge" class="text-[11px] text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">Detecting Device...</span>
+        <span id="deviceTypeBadge" class="text-[10px] text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">Mobile & Touch Ready</span>
     </div>
 
     <script>
-        // --- Core Setup & Variables ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        const scoreText = document.getElementById('scoreText');
-        const highScoreText = document.getElementById('highScoreText');
-        const chargeStatusText = document.getElementById('chargeStatusText');
-        const chargeIcon = document.getElementById('chargeIcon');
-        const powerBar = document.getElementById('powerBar');
-        const instructionModal = document.getElementById('instructionModal');
-        const startGameBtn = document.getElementById('startGameBtn');
-        const togglePlugBtn = document.getElementById('togglePlugBtn');
-        const toggleBtnText = document.getElementById('toggleBtnText');
-        const deviceTypeBadge = document.getElementById('deviceTypeBadge');
-
+        // Game State Variables
+        let canvas, ctx;
         let isCharging = false;
         let isSimulatingCharging = false;
         let bowPower = 0;
         let score = 0;
         let highScore = 0;
-
-        try {
-            highScore = parseInt(localStorage.getItem('charge_arch_highscore') || '0', 10);
-        } catch (e) {}
-        if (highScoreText) highScoreText.textContent = highScore;
-
         let gameRunning = false;
         let lastTime = performance.now();
         let spawnTimer = 0;
         let spawnInterval = 4200;
 
-        const mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        let mouse = { x: 300, y: 300 };
         let arrows = [];
         let enemies = [];
         let particles = [];
+        let archer = { x: 80, y: 300 };
 
-        const archer = {
-            x: 80,
-            y: window.innerHeight / 2
-        };
+        // DOM Element Cache
+        let scoreText, highScoreText, chargeStatusText, chargeIcon, powerBar, instructionModal, startGameBtn, togglePlugBtn, toggleBtnText;
+
+        function initDOM() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            scoreText = document.getElementById('scoreText');
+            highScoreText = document.getElementById('highScoreText');
+            chargeStatusText = document.getElementById('chargeStatusText');
+            chargeIcon = document.getElementById('chargeIcon');
+            powerBar = document.getElementById('powerBar');
+            instructionModal = document.getElementById('instructionModal');
+            startGameBtn = document.getElementById('startGameBtn');
+            togglePlugBtn = document.getElementById('togglePlugBtn');
+            toggleBtnText = document.getElementById('toggleBtnText');
+
+            try {
+                highScore = parseInt(localStorage.getItem('charge_arch_highscore') || '0', 10);
+            } catch (e) { highScore = 0; }
+            if (highScoreText) highScoreText.textContent = highScore;
+        }
 
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            if (!canvas) return;
+            canvas.width = window.innerWidth || document.documentElement.clientWidth || 360;
+            canvas.height = window.innerHeight || document.documentElement.clientHeight || 640;
+            archer.x = 80;
             archer.y = canvas.height / 2;
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+
+        function forceStartGame() {
+            initDOM();
+            resizeCanvas();
+            score = 0;
+            bowPower = 0;
+            arrows = [];
+            enemies = [];
+            particles = [];
+            
+            if (scoreText) scoreText.textContent = '0';
+            
+            if (instructionModal) {
+                instructionModal.classList.add('hidden-modal');
+            }
+
+            gameRunning = true;
+            lastTime = performance.now();
+        }
 
         // Pointer Tracking
         window.addEventListener('mousemove', (e) => {
@@ -161,9 +197,9 @@
                 mouse.x = e.touches[0].clientX;
                 mouse.y = e.touches[0].clientY;
             }
-        });
+        }, { passive: true });
 
-        // Safe Battery API Check
+        // Safe Battery Detection
         function initBatteryAPI() {
             try {
                 if ('getBattery' in navigator && typeof navigator.getBattery === 'function') {
@@ -188,15 +224,19 @@
             const activeCharging = isCharging || isSimulatingCharging;
             
             if (activeCharging) {
-                if (chargeStatusText) chargeStatusText.textContent = "CHARGING...";
-                if (chargeStatusText) chargeStatusText.className = "text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-400";
-                if (chargeIcon) chargeIcon.className = "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-400 animate-ping shrink-0";
+                if (chargeStatusText) {
+                    chargeStatusText.textContent = "CHARGING...";
+                    chargeStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-amber-400 truncate";
+                }
+                if (chargeIcon) chargeIcon.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0";
                 if (toggleBtnText) toggleBtnText.textContent = "RELEASE & SHOOT";
                 if (togglePlugBtn) togglePlugBtn.classList.add("bg-amber-500/20", "border-amber-500/50");
             } else {
-                if (chargeStatusText) chargeStatusText.textContent = "UNPLUGGED";
-                if (chargeStatusText) chargeStatusText.className = "text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400";
-                if (chargeIcon) chargeIcon.className = "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500 animate-pulse shrink-0";
+                if (chargeStatusText) {
+                    chargeStatusText.textContent = "UNPLUGGED";
+                    chargeStatusText.className = "text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate";
+                }
+                if (chargeIcon) chargeIcon.className = "w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0";
                 if (toggleBtnText) toggleBtnText.textContent = "HOLD / PLUG IN (SIMULATE)";
                 if (togglePlugBtn) togglePlugBtn.classList.remove("bg-amber-500/20", "border-amber-500/50");
 
@@ -207,16 +247,6 @@
             }
         }
 
-        function detectDeviceType() {
-            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-            if (isTouch) {
-                deviceTypeBadge.textContent = "Mobile / Touch Mode (Plug or Hold Button)";
-            } else {
-                deviceTypeBadge.textContent = "Desktop Mode (Hold Spacebar / Click to Charge)";
-            }
-        }
-
-        // Button Controls
         function startSimulatedCharge() {
             isSimulatingCharging = true;
             handleChargingChange();
@@ -229,23 +259,27 @@
             }
         }
 
-        togglePlugBtn.addEventListener('mousedown', startSimulatedCharge);
-        togglePlugBtn.addEventListener('mouseup', stopSimulatedCharge);
-        togglePlugBtn.addEventListener('mouseleave', stopSimulatedCharge);
-        togglePlugBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startSimulatedCharge();
-        }, { passive: false });
-        togglePlugBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopSimulatedCharge();
-        }, { passive: false });
+        // Setup Buttons
+        function setupButtonEvents() {
+            if (!togglePlugBtn) return;
+            togglePlugBtn.addEventListener('mousedown', startSimulatedCharge);
+            togglePlugBtn.addEventListener('mouseup', stopSimulatedCharge);
+            togglePlugBtn.addEventListener('mouseleave', stopSimulatedCharge);
+            togglePlugBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startSimulatedCharge();
+            }, { passive: false });
+            togglePlugBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stopSimulatedCharge();
+            }, { passive: false });
+        }
 
-        // Key controls
+        // Keyboard support
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && !e.repeat) {
                 if (!gameRunning) {
-                    startGame();
+                    forceStartGame();
                 } else {
                     startSimulatedCharge();
                 }
@@ -258,7 +292,7 @@
             }
         });
 
-        // --- Game Entities ---
+        // Game Entities
         function shootArrow(power) {
             const dx = mouse.x - archer.x;
             const dy = mouse.y - archer.y;
@@ -394,8 +428,7 @@
             }
         }
 
-        // Game Update Loop
-        function update(currentTime) {
+        function updateGame(currentTime) {
             const deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
@@ -451,29 +484,4 @@
                                 if (highScoreText) highScoreText.textContent = highScore;
                                 try {
                                     localStorage.setItem('charge_arch_highscore', highScore);
-                                } catch (err) {}
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-
-            const defenseLineX = archer.x + 60;
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                const e = enemies[i];
-                e.update();
-
-                if (e.x <= defenseLineX) {
-                    gameOver();
-                    return;
-                }
-            }
-
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life -= p.decay;
-                if (p.life <= 0) {
-                    particles.splice
+               
