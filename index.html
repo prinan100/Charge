@@ -89,7 +89,7 @@
                 Plug in your phone charger to load energy into your bow. <strong class="text-amber-400">Unplug the cable to fire realistic arrows</strong> at incoming stick figure targets!
             </p>
             
-            <button id="startGameBtn" class="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-2xl shadow-lg transition transform active:scale-95 text-lg cursor-pointer pointer-events-auto z-30">
+            <button id="startGameBtn" onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-2xl shadow-lg transition transform active:scale-95 text-lg cursor-pointer pointer-events-auto z-30">
                 READY TO SHOOT
             </button>
         </div>
@@ -177,24 +177,26 @@
 
         // Safe Non-Blocking Battery API Integration
         function initBatteryAPI() {
-            if ('getBattery' in navigator) {
-                try {
+            try {
+                if ('getBattery' in navigator && typeof navigator.getBattery === 'function') {
                     navigator.getBattery().then(battery => {
-                        updateBatteryStatus(battery.charging);
-                        battery.addEventListener('chargingchange', () => {
+                        if (battery) {
                             updateBatteryStatus(battery.charging);
-                        });
+                            battery.addEventListener('chargingchange', () => {
+                                updateBatteryStatus(battery.charging);
+                            });
+                        }
                     }).catch(err => {
-                        console.log('Battery API permission denied or unhandled:', err);
+                        console.warn('Battery API promise handled safely:', err);
                     });
-                } catch (e) {
-                    console.log('Battery API call failed silently');
                 }
+            } catch (e) {
+                console.warn('Battery API initialization skipped safely:', e);
             }
         }
 
         function updateBatteryStatus(charging) {
-            isCharging = charging;
+            isCharging = !!charging;
             handleChargingChange();
         }
 
@@ -473,6 +475,4 @@
 
                         if (e.hp <= 0) {
                             enemies.splice(j, 1);
-                            createParticles(e.x, e.y - e.height / 2, 20, '#fbbf24');
-                            score += e.isBoss ? 3 : 1;
-                         
+               
